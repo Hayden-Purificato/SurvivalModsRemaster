@@ -16,5 +16,5 @@ namespace INIT
 	Hash LoadModel(const char* modelName);
 	void UnloadModel(Hash model);
 	void LoadTriggerPeds();
-	Ped SpawnTriggerPed(size_t index);
+	void SpawnTriggerMarker(size_t index);
 }

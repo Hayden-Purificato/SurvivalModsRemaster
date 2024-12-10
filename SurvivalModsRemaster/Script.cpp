@@ -106,15 +106,7 @@ void IsPlayerInMissionStartRange() {
         if (CALC::IsInRange_2(playerPosition, TriggerPedsData::positions.at(i).coords, 80.0f)) {
             Data::TPIndex = i;
             canStart = true;
-
-            Ped ped = TriggerPedsData::peds.at(i);
-
-            if (ped == 0) {
-                Data::showControls = false;
-                return;
-            }
-
-            Vector3 coords = ENTITY::GET_ENTITY_COORDS(ped, false);
+            Vector3 coords = TriggerPedsData::positions.at(i).coords;
             Data::showControls = CALC::IsInRange_2(playerPosition, coords, 4.5f) &&
                                  !PED::IS_PED_IN_ANY_VEHICLE(PLAYER::PLAYER_PED_ID(), false);
             return;
@@ -316,6 +308,7 @@ bool KilledByPlayer(Ped ped) {
 }
 
 void ProcessTriggerPeds() {
+    
     size_t size = TriggerPedsData::timerActive.size();
 
     for (size_t i = 0; i < size; i++) {
@@ -323,57 +316,35 @@ void ProcessTriggerPeds() {
 
         if (!active) {
             if (!SURVIVAL::SurvivalData::IsActive) {
-                Vector3 playerPosition = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);
-                EntityPosition TPPos = TriggerPedsData::positions.at(i);
-                bool inRange = CALC::IsInRange_2(playerPosition, TPPos.coords, 80.0f);
-                Ped ped = TriggerPedsData::peds.at(i);
+                Vector3 playerPosition = ENTITY::GET_ENTITY_COORDS(PLAYER::PLAYER_PED_ID(), true);// get player position
+                EntityPosition TPPos = TriggerPedsData::positions.at(i);//get position of what we're about to spawn from the trigger peds list
+                bool inRange = CALC::IsInRange_2(playerPosition, TPPos.coords, 80.0f);//check if player is close enough to spawn trigger entity
 
-                if (ped == 0 && canStart) {
-                    if (inRange && !TriggerPedsData::killedFlags.at(i)) {
-                        TriggerPedsData::peds.at(i) = INIT::SpawnTriggerPed(i);
-                        SetAllies();
-                    } else if (!inRange)
-                        TriggerPedsData::killedFlags.at(i) = false;
-                } else if (ped != 0) {
-                    if (!inRange) {
-                        ENTITY::SET_PED_AS_NO_LONGER_NEEDED(&ped);
-                        TriggerPedsData::peds.at(i) = 0;
-                        ClearAllies();
-                    } else if (!canStart) {
-                        ENTITY::SET_PED_AS_NO_LONGER_NEEDED(&ped);
-                        TriggerPedsData::peds.at(i) = 0;
-                        TriggerPedsData::killedFlags.at(i) = true;
-                        ClearAllies();
-                    } else if (ENTITY::IS_ENTITY_DEAD(ped, true)) {
-                        if (KilledByPlayer(ped)) {
-                            HUD::REMOVE_BLIP(&TriggerPedsData::blips.at(i));
-                            TriggerPedsData::blips.at(i) = 0;
-                            ENTITY::SET_PED_AS_NO_LONGER_NEEDED(&ped);
-                            TriggerPedsData::peds.at(i) = 0;
-                            SURVIVAL::StartMission(
-                                    currentMode == SurvivalModes::Endless,
-                                    currentMode == SurvivalModes::Timed,
-                                    currentMode == SurvivalModes::Hardcore
-                                    );
-                            currentMode = SurvivalModes::TenWaves;
-                        } else {
-                            ENTITY::SET_PED_AS_NO_LONGER_NEEDED(&ped);
-                            TriggerPedsData::peds.at(i) = 0;
-                            TriggerPedsData::killedFlags.at(i) = true;
-                        }
-
-                        ClearAllies();
+                //=================================================================================================================ok
+                if (canStart) {//if we are ready to start a survival
+                    if (inRange) {//if we're nearby
+                        INIT::SpawnTriggerMarker(i);//call the function to create the entity
+                    } 
+                }
+                if (CALC::IsInRange_2(playerPosition, TPPos.coords, 4.0f))
+                {//=======THIS IS WHERE WE CHECK THE PLAYERS ACTIONS AND START THE SURVIVAL=============//player is inside trigger
+                    if (PAD::IS_CONTROL_JUST_PRESSED(0, 51)) {//player presses E
+                        HUD::REMOVE_BLIP(&TriggerPedsData::blips.at(i));
+                        TriggerPedsData::blips.at(i) = 0;
+                        SURVIVAL::StartMission(
+                            currentMode == SurvivalModes::Endless,
+                            currentMode == SurvivalModes::Timed,
+                            currentMode == SurvivalModes::Hardcore
+                        );
+                        currentMode = SurvivalModes::TenWaves;
                     }
                 }
             }
-
             continue;
         }
-
         if (MISC::GET_GAME_TIMER() - TriggerPedsData::starTime.at(i) < 300000) {
             continue;
         }
-
         TriggerPedsData::timerActive.at(i) = false;
         TriggerPedsData::blips.at(i) = BLIPS::CreateForMissionTriggerPed(TriggerPedsData::positions.at(i).coords,
                                                                          TriggerPedsData::names.at(i).c_str());
@@ -401,6 +372,7 @@ int main() {
         playerId = PLAYER::PLAYER_PED_ID();
         IsPlayerInMissionStartRange();
         ProcessTriggerPeds();
+        
 
         if (SURVIVAL::SurvivalData::IsActive) {
             if (SURVIVAL::SurvivalData::Started) {
